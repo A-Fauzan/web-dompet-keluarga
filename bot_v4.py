@@ -1,37 +1,27 @@
-
 """
 Bot Telegram Pencatat Pengeluaran - Fauzan & Venska
-v3.0 — Multi transaksi, auto kategori, history per tanggal
+v4.0 — Turso cloud database (data aman permanen)
 """
 
-import sqlite3
+import os
 import re
 import logging
+import asyncio
+import libsql_experimental as libsql
 from datetime import datetime, date, timedelta
-from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     CallbackQueryHandler, ContextTypes, filters
 )
-import nest_asyncio # Import nest_asyncio
-import asyncio # Import asyncio
-
-# Apply nest_asyncio to allow nested event loops
-nest_asyncio.apply()
 
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
-import os
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-
-USERS = {
-    "@ahmdfauzn": 0,
-    "@merhabavenska": 0,
-}
+BOT_TOKEN   = os.environ.get("BOT_TOKEN")
+TURSO_URL   = os.environ.get("TURSO_URL")    # libsql://nama-db.turso.io
+TURSO_TOKEN = os.environ.get("TURSO_TOKEN")  # token dari Turso dashboard
 # ───────────────────────────────────────────────────────────────────────────────
 
 logging.basicConfig(level=logging.INFO)
-DB = "pengeluaran.db"
 
 
 # ── AUTO KATEGORISASI ──────────────────────────────────────────────────────────
@@ -84,14 +74,14 @@ KATEGORI_KEYWORDS = {
 }
 
 KATEGORI_EMOJI = {
-    "Makanan": "🍔 Makanan",
+    "Makanan":      "🍔 Makanan",
     "Transportasi": "🚗 Transportasi",
-    "Rumah": "🏠 Rumah",
-    "Anak": "👶 Anak",
-    "Kesehatan": "💊 Kesehatan",
-    "Pakaian": "👕 Pakaian",
-    "Elektronik": "📱 Elektronik",
-    "Lain-lain": "📦 Lain-lain",
+    "Rumah":        "🏠 Rumah",
+    "Anak":         "👶 Anak",
+    "Kesehatan":    "💊 Kesehatan",
+    "Pakaian":      "👕 Pakaian",
+    "Elektronik":   "📱 Elektronik",
+    "Lain-lain":    "📦 Lain-lain",
 }
 
 def auto_kategori(keterangan):
@@ -103,70 +93,74 @@ def auto_kategori(keterangan):
     return "Lain-lain"
 
 
-# ── DATABASE ────────────────────────────────────────────────────────────────────
+# ── DATABASE (Turso) ───────────────────────────────────────────────────────────
+def get_con():
+    return libsql.connect(TURSO_URL, auth_token=TURSO_TOKEN)
+
 def init_db():
-    with sqlite3.connect(DB) as con:
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS pengeluaran (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                nama       TEXT NOT NULL,
-                keterangan TEXT NOT NULL,
-                kategori   TEXT NOT NULL,
-                jumlah     INTEGER NOT NULL,
-                tanggal    TEXT NOT NULL
-            )
-        """
+    con = get_con()
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS pengeluaran (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama       TEXT NOT NULL,
+            keterangan TEXT NOT NULL,
+            kategori   TEXT NOT NULL,
+            jumlah     INTEGER NOT NULL,
+            tanggal    TEXT NOT NULL
         )
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                telegram_id INTEGER PRIMARY KEY,
-                nama        TEXT NOT NULL
-            )
-        """
+    """)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            telegram_id INTEGER PRIMARY KEY,
+            nama        TEXT NOT NULL
         )
+    """)
+    con.commit()
 
 def get_nama(telegram_id):
-    with sqlite3.connect(DB) as con:
-        row = con.execute("SELECT nama FROM users WHERE telegram_id=?", (telegram_id,)).fetchone()
+    con = get_con()
+    row = con.execute("SELECT nama FROM users WHERE telegram_id=?", (telegram_id,)).fetchone()
     return row[0] if row else None
 
 def register_user(telegram_id, nama):
-    with sqlite3.connect(DB) as con:
-        con.execute("INSERT OR REPLACE INTO users VALUES (?,?)", (telegram_id, nama))
+    con = get_con()
+    con.execute("INSERT OR REPLACE INTO users VALUES (?,?)", (telegram_id, nama))
+    con.commit()
 
 def simpan(nama, keterangan, kategori, jumlah):
     today = date.today().isoformat()
-    with sqlite3.connect(DB) as con:
-        con.execute(
-            "INSERT INTO pengeluaran (nama,keterangan,kategori,jumlah,tanggal) VALUES (?,?,?,?,?)",
-            (nama, keterangan, kategori, jumlah, today)
-        )
+    con = get_con()
+    con.execute(
+        "INSERT INTO pengeluaran (nama,keterangan,kategori,jumlah,tanggal) VALUES (?,?,?,?,?)",
+        (nama, keterangan, kategori, jumlah, today)
+    )
+    con.commit()
 
 def get_recent_expenses(nama, limit=5):
-    with sqlite3.connect(DB) as con:
-        rows = con.execute(
-            "SELECT id, keterangan, jumlah, tanggal FROM pengeluaran WHERE nama=? ORDER BY id DESC LIMIT ?",
-            (nama, limit)
-        ).fetchall()
-    return rows
+    con = get_con()
+    return con.execute(
+        "SELECT id, keterangan, jumlah, tanggal FROM pengeluaran WHERE nama=? ORDER BY id DESC LIMIT ?",
+        (nama, limit)
+    ).fetchall()
 
 def delete_expense_by_id(expense_id):
-    with sqlite3.connect(DB) as con:
-        row = con.execute(
-            "SELECT id, keterangan, jumlah FROM pengeluaran WHERE id=?",
-            (expense_id,)
-        ).fetchone()
-        if row:
-            con.execute("DELETE FROM pengeluaran WHERE id=?", (expense_id,))
-            return {"keterangan": row[1], "jumlah": row[2]}
+    con = get_con()
+    row = con.execute(
+        "SELECT id, keterangan, jumlah FROM pengeluaran WHERE id=?",
+        (expense_id,)
+    ).fetchone()
+    if row:
+        con.execute("DELETE FROM pengeluaran WHERE id=?", (expense_id,))
+        con.commit()
+        return {"keterangan": row[1], "jumlah": row[2]}
     return None
 
 def query_rows(where_clause, params):
-    with sqlite3.connect(DB) as con:
-        return con.execute(
-            "SELECT nama, keterangan, kategori, jumlah, tanggal FROM pengeluaran " + where_clause,
-            params
-        ).fetchall()
+    con = get_con()
+    return con.execute(
+        "SELECT nama, keterangan, kategori, jumlah, tanggal FROM pengeluaran " + where_clause,
+        params
+    ).fetchall()
 
 
 # ── PARSER ─────────────────────────────────────────────────────────────────────
@@ -228,7 +222,6 @@ def fmt_rekap(result):
     lines = ["📊 *Rekap Pengeluaran — " + label + "*\n"]
     for nama, info in sorted(data.items()):
         persen = (info["total"] / total * 100) if total else 0
-        # Removed user-specific emojis as per instruction
         lines.append("*" + nama.capitalize() + "* — " + fmt_rp(info["total"]) + " (" + "{:.1f}".format(persen) + "%)")
         lines.append("`[" + bar(persen) + "]` " + "{:.1f}".format(persen) + "%")
         for ket, jml, _ in sorted(info["detail"], key=lambda x: x[1], reverse=True):
@@ -291,7 +284,7 @@ def fmt_history(rows, label):
 
 
 def _proses_rekap(rows, label):
-    data = {} # type: dict[str, dict[str, any]]
+    data = {}
     for nama, ket, kat, jumlah, tanggal in rows:
         if nama not in data:
             data[nama] = {"total": 0, "detail": []}
@@ -300,9 +293,8 @@ def _proses_rekap(rows, label):
     total_all = sum(v["total"] for v in data.values())
     return {"label": label, "data": data, "total": total_all}
 
-def rekap_bulan(bulan=None):
-    if bulan is None:
-        bulan = date.today().strftime("%Y-%m")
+def rekap_bulan():
+    bulan = date.today().strftime("%Y-%m")
     rows = query_rows("WHERE tanggal LIKE ?", (bulan + "%",))
     return _proses_rekap(rows, "Bulan " + bulan)
 
@@ -438,7 +430,7 @@ async def cmd_hapus(update, ctx):
         await update.message.reply_text("Kamu belum terdaftar. Ketik /start")
         return
 
-    recent_expenses = get_recent_expenses(nama, limit=5) # Get last 5 expenses
+    recent_expenses = get_recent_expenses(nama, limit=5)
 
     if not recent_expenses:
         await update.message.reply_text("Tidak ada pengeluaran terbaru yang bisa dihapus.")
@@ -446,7 +438,6 @@ async def cmd_hapus(update, ctx):
 
     keyboard = []
     for exp_id, ket, jml, tgl in recent_expenses:
-        # Format date for display if needed, e.g., tgl_formatted = datetime.strptime(tgl, '%Y-%m-%d').strftime('%d %b')
         keyboard.append([
             InlineKeyboardButton(
                 f"🗑️ {ket} ({fmt_rp(jml)})",
@@ -480,10 +471,9 @@ async def callback_delete_item(update, ctx):
     else:
         await query.edit_message_text("❌ Gagal menghapus atau item tidak ditemukan.")
 
-
 async def cmd_bantuan(update, ctx):
     await update.message.reply_text(
-        "❓ *Panduan Bot Pengeluaran v3*\n\n"
+        "❓ *Panduan Bot Pengeluaran v4*\n\n"
         "*Catat — langsung ketik (bisa multi sekaligus):*\n"
         "  `bensin 100rb`\n"
         "  `bensin 100rb, ganti oli 75rb, makan 35rb`\n"
@@ -492,17 +482,20 @@ async def cmd_bantuan(update, ctx):
         "*Pemisah multi transaksi:*\n"
         "  Koma, titik koma, baris baru, atau 'dan'\n\n"
         "*Kategori otomatis:*\n"
-        "  " + KATEGORI_EMOJI["Makanan"] + ", " + KATEGORI_EMOJI["Transportasi"] + ", " + KATEGORI_EMOJI["Rumah"] + "\n"
-        "  " + KATEGORI_EMOJI["Anak"] + ", " + KATEGORI_EMOJI["Kesehatan"] + ", " + KATEGORI_EMOJI["Pakaian"] + "\n"
-        "  " + KATEGORI_EMOJI["Elektronik"] + ", " + KATEGORI_EMOJI["Lain-lain"] + "\n\n"
+        "  🍔 Makanan, 🚗 Transportasi, 🏠 Rumah\n"
+        "  👶 Anak, 💊 Kesehatan, 👕 Pakaian\n"
+        "  📱 Elektronik, 📦 Lain-lain\n\n"
         "*Perintah:*\n"
         "  /rekap — rekap berdua + persentase\n"
         "  /analisis — breakdown per kategori\n"
         "  /history — riwayat per tanggal\n"
-        "  /hapus — hapus entri terakhirmu (sekarang bisa pilih!)\n"
+        "  /hapus — hapus entri (bisa pilih mana)\n"
         "  /bantuan — panduan ini",
         parse_mode="Markdown"
     )
+
+async def error_handler(update, context):
+    logging.error(f"Error: {context.error}")
 
 async def pesan_masuk(update, ctx):
     nama = get_nama(update.effective_user.id)
@@ -537,21 +530,7 @@ async def pesan_masuk(update, ctx):
 
 
 # ── MAIN ────────────────────────────────────────────────────────────────────────
-# Global variable to hold the application instance
-app = None
-
-async def main_async(): # Renamed to main_async to avoid conflict with `main` in `if __name__ == "__main__"`
-    global app
-
-    # If an app is already running, shut it down gracefully.
-    if app is not None and app.running:
-        print("Stopping existing bot instance gracefully...")
-        try:
-            await app.stop() # Await the stop operation
-            print("Previous bot instance stopped.")
-        except Exception as e:
-            print(f"Error stopping previous bot instance: {e}. Attempting to proceed.")
-
+def main():
     init_db()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -562,18 +541,17 @@ async def main_async(): # Renamed to main_async to avoid conflict with `main` in
     app.add_handler(CommandHandler("hapus",    cmd_hapus))
     app.add_handler(CommandHandler("bantuan",  cmd_bantuan))
 
-    app.add_handler(CallbackQueryHandler(callback_daftar,   pattern=r"^daftar_"))
-    app.add_handler(CallbackQueryHandler(callback_rekap,    pattern=r"^rekap_"))
-    app.add_handler(CallbackQueryHandler(callback_analisis, pattern=r"^analisis_"))
-    app.add_handler(CallbackQueryHandler(callback_history,  pattern=r"^history_"))
+    app.add_handler(CallbackQueryHandler(callback_daftar,      pattern=r"^daftar_"))
+    app.add_handler(CallbackQueryHandler(callback_rekap,       pattern=r"^rekap_"))
+    app.add_handler(CallbackQueryHandler(callback_analisis,    pattern=r"^analisis_"))
+    app.add_handler(CallbackQueryHandler(callback_history,     pattern=r"^history_"))
     app.add_handler(CallbackQueryHandler(callback_delete_item, pattern=r"^delete_item_|^delete_cancel"))
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, pesan_masuk))
+    app.add_error_handler(error_handler)
 
-    print("Bot v3 berjalan...")
-    await app.run_polling() # Await run_polling
+    print("Bot v4 berjalan... (Turso DB)")
+    app.run_polling()
 
 if __name__ == "__main__":
-    # Ensure nest_asyncio is applied before running asyncio.run
-    nest_asyncio.apply()
-    asyncio.run(main_async())
+    main()
