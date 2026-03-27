@@ -21,7 +21,8 @@ import asyncio # Import asyncio
 nest_asyncio.apply()
 
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
-BOT_TOKEN = "8641413746:AAGkHvZBOQgAUmMAel7EERo_CMdiBnLSKkA"
+import os
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 USERS = {
     "@ahmdfauzn": 0,
