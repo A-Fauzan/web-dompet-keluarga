@@ -339,7 +339,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
    ══════════════════════════════════════════════ */
 // ⚙️ Ganti dengan URL Web App Apps Script kamu
 // Contoh: "https://script.google.com/macros/s/AKfycb.../exec"
-const API_URL = "https://script.google.com/macros/s/AKfycbzVhXoxvjtyXmqW41vJEx9XmqGHFNLz3rBNQswUfEQidu0eXkccepsibjt-nj14khpr/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzLMUr1YXrcqugYVT_fmRE7h3jQ30qoouzg5Bdn2-qcT503hVstO1PWxRCYNoJsZXIa/exec";
 
 /* ════════ KATEGORI ════════ */
 const CATS_EXP = [
@@ -451,36 +451,30 @@ function showAddToast(msg, ok=true) {
   setTimeout(() => el.style.display = 'none', 2200);
 }
 
-/* ════════ API ════════ */
-// Apps Script: GET pakai query params, POST pakai body JSON
-async function apiGet(params={}) {
-  const qs = new URLSearchParams({...params}).toString();
-  const res = await fetch(API_URL + '?' + qs, { redirect: 'follow' });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
-async function apiPost(body={}) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    redirect: 'follow'
+
+/* ════════ API — pakai JSONP untuk bypass CORS ════════ */
+function apiGet(params = {}) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'cb_' + Date.now();
+    const qs = new URLSearchParams({ ...params, callback: cbName }).toString();
+    const script = document.createElement('script');
+    script.src = API_URL + '?' + qs;
+    window[cbName] = (data) => {
+      delete window[cbName];
+      document.body.removeChild(script);
+      if (data && data.error) reject(new Error(data.error));
+      else resolve(data);
+    };
+    script.onerror = () => reject(new Error('Network error'));
+    document.body.appendChild(script);
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
-async function loadTx() {
-  try {
-    const result = await apiGet({ action: 'get_transactions', month: selMonth });
-    allTx = Array.isArray(result) ? result : [];
-    document.getElementById('api-banner').classList.remove('show');
-  } catch(e) {
-    console.error(e);
-    document.getElementById('api-banner').classList.add('show');
-    allTx = [];
-  }
 }
 
+async function apiPost(body = {}) {
+  // POST tidak bisa pakai JSONP, pakai no-cors + simpan via GET
+  // Kirim data lewat GET dengan action post
+  return apiGet({ ...body });
+}
 /* ════════ INIT ════════ */
 async function init() {
   selMonth = mKey(new Date());
