@@ -37,7 +37,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .spinner{width:32px;height:32px;border:3px solid #F0EDE8;border-top-color:#C8865C;border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ERROR BANNER */
+/* API BANNER */
 #api-banner{background:#FFF3CD;border:1px solid #FFD970;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#856404;display:none}
 #api-banner.show{display:block}
 
@@ -94,7 +94,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .save-btn:active{transform:scale(.97);box-shadow:0 4px 12px rgba(200,134,92,.25)}
 .save-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 
-/* QUICK INPUT */
+/* QUICK INPUT (Telegram style) */
 .quick-box{margin-top:22px;border-radius:18px;border:2px solid #F0EDE8;overflow:hidden;background:#fff}
 .quick-header{background:linear-gradient(135deg,#2D2A26,#3D3830);padding:14px 16px;display:flex;align-items:center;gap:10px}
 .quick-header .qh-icon{font-size:20px}
@@ -183,8 +183,8 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
   <div id="pages">
     <!-- HOME -->
     <div class="page active" id="page-home">
-      <div id="api-banner">
-        ⚠️ <b>Gagal memuat data.</b> Periksa koneksi internet atau URL Apps Script kamu.
+      <div id="api-banner" class="show">
+        ⚙️ <b>Setup diperlukan:</b> Ganti <code>API_URL</code> dengan URL Apps Script kamu.
       </div>
       <div class="card-main">
         <div class="saldo-label">Saldo Bulan Ini</div>
@@ -215,39 +215,53 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     <div class="page" id="page-add">
       <div class="sec-title" style="margin-top:0;margin-bottom:16px">Catat Transaksi</div>
       <div id="add-toast-box" style="display:none;border-radius:12px;padding:12px 16px;margin-bottom:14px;text-align:center;font-weight:600;font-size:14px;color:#fff"></div>
+
+      <!-- Pilih Nama -->
       <label class="form-label">SIAPA YANG MENCATAT?</label>
       <div class="nama-row" id="nama-row">
         <button class="nama-btn active" id="nama-fauzan" onclick="setNama('Fauzan')" style="background:linear-gradient(135deg,#C8865C,#E8A47C);color:#fff">👨 Fauzan</button>
         <button class="nama-btn" id="nama-venska" onclick="setNama('Venska')">👩 Venska</button>
       </div>
+
+      <!-- Tipe -->
       <div class="type-toggle">
         <button class="type-btn active-exp" id="btn-exp" onclick="setType('pengeluaran')">🔴 Pengeluaran</button>
         <button class="type-btn" id="btn-inc" onclick="setType('pemasukan')">🟢 Pemasukan</button>
       </div>
+
+      <!-- Jumlah -->
       <label class="form-label">JUMLAH (Rp)</label>
       <input type="number" id="input-amount" class="form-input big" placeholder="0">
+
+      <!-- Kategori -->
       <label class="form-label">KATEGORI</label>
       <div class="cat-grid" id="cat-grid"></div>
+
+      <!-- Keterangan -->
       <label class="form-label">KETERANGAN</label>
       <input type="text" id="input-note" class="form-input" placeholder="Misal: makan siang di warung...">
+
+      <!-- Tanggal -->
       <label class="form-label">TANGGAL</label>
       <input type="date" id="input-date" class="form-input">
+
       <button class="save-btn" id="save-btn" onclick="saveTx()">💾 Simpan Transaksi</button>
 
-      <!-- QUICK INPUT -->
+      <!-- QUICK INPUT (Telegram Style) -->
       <div class="quick-box">
         <div class="quick-header">
           <div class="qh-icon">⚡</div>
           <div>
-            <div class="qh-text">Input Cepat</div>
+            <div class="qh-text">Input Cepat — Gaya Telegram</div>
             <div class="qh-sub">Ketik seperti di bot, bisa multi sekaligus</div>
           </div>
         </div>
         <div class="quick-body">
           <div class="quick-hint">
-            Contoh:<br>
+            Ketik persis seperti di bot Telegram:<br>
             <code>makan 35rb</code> · <code>bensin 50rb, parkir 5000</code><br>
-            <code>ganti oli 75rb dan cuci motor 20rb</code>
+            <code>ganti oli 75rb dan cuci motor 20rb</code><br>
+            Otomatis deteksi kategori. Gunakan koma/enter/dan sebagai pemisah.
           </div>
           <textarea id="quick-text" class="quick-textarea" rows="3" placeholder="Contoh: makan siang 35rb, bensin 100rb, listrik 200rb"></textarea>
           <div class="quick-actions">
@@ -319,11 +333,13 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 <div id="toast"></div>
 
 <script>
-// ══════════════════════════════════════════════
-// ⚙️  GANTI DENGAN URL APPS SCRIPT KAMU
-// Ambil dari: Apps Script → Deploy → Manage deployments → URL
-// ══════════════════════════════════════════════
-const API_URL = "https://script.google.com/macros/s/AKfycbyzM53wM96Rw6V8LSCZsOafzkFGWOWD9KhHIlYLyopHHnYTUZ96DlJiCFuMNq9lh3wV/exec";
+/* ══════════════════════════════════════════════
+   ⚙️  GANTI INI DENGAN URL RAILWAY KAMU
+   Contoh: "https://dompet-production.up.railway.app"
+   ══════════════════════════════════════════════ */
+// ⚙️ Ganti dengan URL Web App Apps Script kamu
+// Contoh: "https://script.google.com/macros/s/AKfycb.../exec"
+const API_URL = "ISI_URL_APPS_SCRIPT_KAMU";
 
 /* ════════ KATEGORI ════════ */
 const CATS_EXP = [
@@ -346,13 +362,13 @@ const CATS_INC = [
 const MID=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const MS=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
 
-/* ════════ KEYWORD MAPPING ════════ */
+/* ════════ KEYWORD MAPPING (sama dengan bot) ════════ */
 const KW_MAP = [
-  {cat:'Makanan',     kw:['makan','minum','telur','beras','sayur','buah','snack','cemilan','kopi','teh','warung','resto','restoran','nasi','lauk','ayam','ikan','daging','tempe','tahu','indomie','mie','roti','susu','jajan','bakso','soto','warteg','bumbu','gula','kue','pizza','burger','gorengan','bubur','sarapan']},
-  {cat:'Transportasi',kw:['bensin','bbm','pertalite','pertamax','solar','oli','ganti oli','servis','bengkel','ban','parkir','tol','grab','gojek','ojek','taksi','bus','angkot','kereta','krl','mrt','busway','transjakarta','ojol','cuci motor','cuci mobil']},
-  {cat:'Rumah',       kw:['listrik','pln','air','pdam','wifi','internet','telkom','sewa','kos','kontrakan','iuran','gas','lpg','furnitur','sofa','lemari','kasur','sabun','deterjen','renovasi','lampu','barang rumah']},
-  {cat:'Anak',        kw:['popok','pampers','susu formula','mpasi','mainan','spp','uang jajan','buku pelajaran','alat tulis','seragam','les','kursus','vitamin anak','imunisasi','baju anak','perlengkapan bayi','shafiyyah','athiyyah']},
-  {cat:'Kesehatan',   kw:['obat','dokter','apotek','apotik','rumah sakit','klinik','puskesmas','vitamin','suplemen','cek darah','konsultasi','bpjs','rawat','periksa']},
+  {cat:'Makanan',     kw:['makan','minum','telur','beras','sayur','buah','snack','cemilan','kopi','teh','warung','resto','restoran','nasi','lauk','ayam','ikan','daging','tempe','tahu','indomie','mie','roti','susu','jajan','bakso','soto','warteg','bumbu','gula','kue','pizza','burger','gorengan','bubur','sarapan','beli telur','beli sayur','beli buah']},
+  {cat:'Transportasi',kw:['bensin','bbm','pertalite','pertamax','solar','oli','ganti oli','servis','bengkel','ban','parkir','tol','grab','gojek','ojek','taksi','bus','angkot','kereta','krl','mrt','busway','transjakarta','ojol','sparepart','aki','cuci motor','cuci mobil']},
+  {cat:'Rumah',       kw:['listrik','pln','air','pdam','wifi','internet','telkom','sewa','kos','kontrakan','iuran','gas','lpg','furnitur','sofa','lemari','kasur','sabun','deterjen','pembersih','renovasi','lampu','barang rumah']},
+  {cat:'Anak',        kw:['popok','pampers','susu formula','mpasi','mainan','spp','uang jajan','buku pelajaran','alat tulis','seragam','sepatu sekolah','tas sekolah','les','kursus','vitamin anak','imunisasi','baju anak','perlengkapan bayi','shafiyyah','athiyyah']},
+  {cat:'Kesehatan',   kw:['obat','dokter','apotek','apotik','rumah sakit','klinik','puskesmas','vitamin','suplemen','cek darah','laboratorium','konsultasi','bpjs','rawat','periksa','masker']},
   {cat:'Pakaian',     kw:['baju','celana','kaos','kemeja','dress','rok','jilbab','hijab','sepatu','sandal','tas','dompet','pakaian','beli baju','outfit','jaket','sweater','gamis']},
   {cat:'Elektronik',  kw:['pulsa','paket data','token listrik','kuota','netflix','spotify','youtube','charger','kabel','earphone','handphone','hp','laptop','gadget','elektronik']},
 ];
@@ -364,8 +380,9 @@ function autoKategori(ket) {
   return 'Lain-lain';
 }
 
-/* ════════ PARSER ════════ */
+/* ════════ PARSER (replika dari bot) ════════ */
 function parseAngka(text) {
+  // "100rb", "1.5jt", "35000"
   let m = text.match(/(\d+(?:[,.]\d+)?)\s*(jt|juta|rb|ribu|k)\b/i);
   if (m) {
     let n = parseFloat(m[1].replace(',','.'));
@@ -387,7 +404,9 @@ function parseSatu(text) {
   return { keterangan: ket.charAt(0).toUpperCase() + ket.slice(1), jumlah };
 }
 function parseMulti(text) {
-  return text.split(/[\n,;]|\bdan\b/i).map(s=>s.trim()).filter(Boolean).map(parseSatu).filter(Boolean);
+  // Pisah dengan koma, titik koma, newline, atau "dan"
+  const parts = text.split(/[\n,;]|\bdan\b/i).map(s=>s.trim()).filter(Boolean);
+  return parts.map(parseSatu).filter(Boolean);
 }
 
 /* ════════ STATE ════════ */
@@ -412,8 +431,11 @@ const fRp = (n, s=false) => {
 const mKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}`; };
 const tod = () => new Date().toISOString().split('T')[0];
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const gCat = (tipe, id) => {
+  const cats = tipe === 'pemasukan' ? CATS_INC : CATS_EXP;
+  return cats.find(c => c.id === id) || cats[cats.length-1];
+};
 const gCatById = id => CATS_EXP.find(c=>c.id===id) || CATS_INC.find(c=>c.id===id) || {icon:'📦',color:'#7F8C8D',label:id};
-
 function showToast(msg, ok=true) {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -429,51 +451,30 @@ function showAddToast(msg, ok=true) {
   setTimeout(() => el.style.display = 'none', 2200);
 }
 
-/* ════════ API — disesuaikan dengan Apps Script ════════ */
-// GET data transaksi
-async function apiGet(month) {
-  const url = API_URL + '?action=get_transactions' + (month ? '&month=' + month : '');
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
+/* ════════ API ════════ */
+// Apps Script: GET pakai query params, POST pakai body JSON
+async function apiGet(params={}) {
+  const qs = new URLSearchParams({...params}).toString();
+  const res = await fetch(API_URL + '?' + qs, { redirect: 'follow' });
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
-// GET summary
-async function apiGetSummary(month) {
-  const url = API_URL + '?action=get_summary&month=' + month;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
-}
-
-// POST tambah transaksi
-async function apiAdd(data) {
+async function apiPost(body={}) {
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'add_transaction', ...data })
+    body: JSON.stringify(body),
+    redirect: 'follow'
   });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
-// POST hapus transaksi
-async function apiDelete(id) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'delete_transaction', id: id })
-  });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
-}
-
 async function loadTx() {
   try {
-    allTx = await apiGet(selMonth);
+    allTx = await apiGet({ action: 'get_transactions', month: selMonth });
     document.getElementById('api-banner').classList.remove('show');
   } catch(e) {
-    console.error('loadTx error:', e);
+    console.error(e);
     document.getElementById('api-banner').classList.add('show');
     allTx = [];
   }
@@ -524,7 +525,7 @@ function showTab(tab) {
 
 /* ════════ HOME ════════ */
 function renderHome() {
-  const mtx = [...allTx].sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal));
+  const mtx = allTx.sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal));
   const inc = mtx.filter(t => t.tipe === 'pemasukan').reduce((s,t) => s+t.jumlah, 0);
   const exp = mtx.filter(t => t.tipe !== 'pemasukan').reduce((s,t) => s+t.jumlah, 0);
   const bal = inc - exp;
@@ -567,13 +568,12 @@ function txHTML(tx, showDel=true) {
 /* ════════ ADD FORM ════════ */
 function setNama(nama) {
   curNama = nama;
-  ['Fauzan','Venska'].forEach(n => {
-    const btn = document.getElementById('nama-' + n.toLowerCase());
-    const active = n === nama;
-    btn.style.background = active ? 'linear-gradient(135deg,#C8865C,#E8A47C)' : '';
-    btn.style.color = active ? '#fff' : '';
-    btn.className = 'nama-btn' + (active ? ' active' : '');
-  });
+  document.getElementById('nama-fauzan').style.background = nama==='Fauzan' ? 'linear-gradient(135deg,#C8865C,#E8A47C)' : '';
+  document.getElementById('nama-fauzan').style.color = nama==='Fauzan' ? '#fff' : '';
+  document.getElementById('nama-venska').style.background = nama==='Venska' ? 'linear-gradient(135deg,#C8865C,#E8A47C)' : '';
+  document.getElementById('nama-venska').style.color = nama==='Venska' ? '#fff' : '';
+  document.getElementById('nama-fauzan').className = 'nama-btn' + (nama==='Fauzan'?' active':'');
+  document.getElementById('nama-venska').className = 'nama-btn' + (nama==='Venska'?' active':'');
 }
 function setType(type) {
   curType = type;
@@ -601,7 +601,7 @@ async function saveTx() {
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = '⏳ Menyimpan...';
   try {
-    await apiAdd({ nama: curNama, keterangan, kategori: curCatId, jumlah: a, tanggal, tipe: curType });
+    await apiPost({ action: 'add_transaction', nama: curNama, keterangan, kategori: curCatId, jumlah: a, tanggal, tipe: curType });
     document.getElementById('input-amount').value = '';
     document.getElementById('input-note').value = '';
     showAddToast('✅ Tersimpan!', true);
@@ -621,7 +621,8 @@ function quickParse() {
   if (parsed.length === 0) { errEl.classList.add('show'); prevEl.classList.remove('show'); return; }
   errEl.classList.remove('show');
   quickItems = parsed.map((p, i) => ({
-    ...p, id: i,
+    ...p,
+    id: i,
     kategori: autoKategori(p.keterangan),
     tipe: 'pengeluaran',
     nama: curNama,
@@ -641,7 +642,7 @@ function renderQuickPreview() {
         <div class="preview-sub">${cat.label} · ${p.nama}</div>
       </div>
       <div class="preview-amount" style="color:#E8705A">-${fRp(p.jumlah,true)}</div>
-      <button class="preview-remove" onclick="removeQuickItem(${p.id})">✕</button>
+      <button class="preview-remove" onclick="removeQuickItem(${p.id})" title="Hapus dari daftar">✕</button>
     </div>`;
   }).join('');
 }
@@ -657,7 +658,7 @@ async function quickSaveAll() {
   let success = 0;
   for (const p of quickItems) {
     try {
-      await apiAdd({ nama: p.nama, keterangan: p.keterangan, kategori: p.kategori, jumlah: p.jumlah, tanggal: p.tanggal, tipe: p.tipe });
+      await apiPost({ action: 'add_transaction', nama: p.nama, keterangan: p.keterangan, kategori: p.kategori, jumlah: p.jumlah, tanggal: p.tanggal, tipe: p.tipe });
       success++;
     } catch(e) { console.error(e); }
   }
@@ -721,7 +722,6 @@ function renderPie(cid, inst, data, emptyId, legId, setInst) {
   </div>`).join('');
 }
 async function renderMonthlyChart() {
-  if (chartBarInst) { chartBarInst.destroy(); chartBarInst=null; }
   const now = new Date();
   const labels=[], inc=[], exp=[];
   for (let i=5;i>=0;i--) {
@@ -729,11 +729,12 @@ async function renderMonthlyChart() {
     const k = mKey(d);
     labels.push(MS[d.getMonth()]);
     try {
-      const rows = await apiGet(k);
+      const rows = await apiGet({ action: 'get_transactions', month: k });
       inc.push(Math.round(rows.filter(t=>t.tipe==='pemasukan').reduce((s,t)=>s+t.jumlah,0)/1000));
       exp.push(Math.round(rows.filter(t=>t.tipe!=='pemasukan').reduce((s,t)=>s+t.jumlah,0)/1000));
     } catch { inc.push(0); exp.push(0); }
   }
+  if (chartBarInst) { chartBarInst.destroy(); chartBarInst=null; }
   chartBarInst = new Chart(document.getElementById('chart-bar'), {
     type:'bar',
     data:{labels,datasets:[
@@ -766,10 +767,7 @@ function renderHistory() {
   filtered.forEach(t => { const k=mKey(t.tanggal); if(!grouped[k])grouped[k]=[]; grouped[k].push(t); });
   const keys = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
   const list = document.getElementById('history-list');
-  if (keys.length === 0) {
-    list.innerHTML = `<div class="empty"><div style="font-size:42px">📂</div><div style="margin-top:12px;font-size:14px">Tidak ada transaksi</div></div>`;
-    return;
-  }
+  if (keys.length === 0) { list.innerHTML = `<div class="empty"><div style="font-size:42px">📂</div><div style="margin-top:12px;font-size:14px">Tidak ada transaksi</div></div>`; return; }
   list.innerHTML = keys.map(k => {
     const [y,mo] = k.split('-').map(Number);
     const txs = grouped[k];
@@ -783,17 +781,12 @@ function renderHistory() {
     </div>`;
   }).join('');
 }
-
 async function deleteTx(id) {
   if (!confirm('Hapus transaksi ini?')) return;
   try {
-    const res = await apiDelete(id);
-    if (res.success) {
-      showToast('🗑️ Dihapus', true);
-      await loadTx(); renderHistory(); renderHome();
-    } else {
-      showToast('❌ ' + (res.error || 'Gagal hapus'), false);
-    }
+    await apiPost({ action: 'delete_transaction', id });
+    showToast('🗑️ Dihapus', true);
+    await loadTx(); renderHistory(); renderHome();
   } catch(e) { showToast('❌ Gagal hapus', false); }
 }
 
