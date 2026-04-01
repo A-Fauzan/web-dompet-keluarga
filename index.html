@@ -471,7 +471,8 @@ async function apiPost(body={}) {
 }
 async function loadTx() {
   try {
-    allTx = await apiGet({ action: 'get_transactions', month: selMonth });
+    const result = await apiGet({ action: 'get_transactions', month: selMonth });
+    allTx = Array.isArray(result) ? result : [];
     document.getElementById('api-banner').classList.remove('show');
   } catch(e) {
     console.error(e);
@@ -525,7 +526,7 @@ function showTab(tab) {
 
 /* ════════ HOME ════════ */
 function renderHome() {
-  const mtx = allTx.sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal));
+  const mtx = (Array.isArray(allTx) ? allTx : []).sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal));
   const inc = mtx.filter(t => t.tipe === 'pemasukan').reduce((s,t) => s+t.jumlah, 0);
   const exp = mtx.filter(t => t.tipe !== 'pemasukan').reduce((s,t) => s+t.jumlah, 0);
   const bal = inc - exp;
